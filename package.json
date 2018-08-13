@@ -1,0 +1,20 @@
+{
+  "name": "tcx-cp",
+  "version": "1.0.0",
+  "description": "A simple frontend to help editing course points in .tcx files using OpenStreetMap.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "parcel index.html",
+    "build": "parcel build --public-url . index.html"
+  },
+  "author": "wakira",
+  "license": "ISC",
+  "dependencies": {
+    "ol": "^5.1.3",
+    "xml2js": "^0.4.19"
+  },
+  "devDependencies": {
+    "parcel-bundler": "^1.9.7"
+  }
+}
