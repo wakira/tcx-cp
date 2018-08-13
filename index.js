@@ -9,14 +9,17 @@ import VectorSource from 'ol/source/Vector';
 import { fromLonLat } from 'ol/proj';
 import { Builder, parseString } from 'xml2js'
 
-var allTrackPoints = []
 var parsedContent = null;
+var allTrackPoints = null;
+var allCoursePoints = null;
+var addCB = null;
+var updateCB = null;
+var delCB = null;
 
-function reset() {
-    allTrackPoints = [];
-    parsedContent = [];
-    document.getElementById("cpEdit").removeAttribute("hidden");
-    document.getElementById("save").removeAttribute("disabled");
+function resetGlobalVariables() {
+    parsedContent = null;
+    allTrackPoints = null;
+    allCoursePoints =null 
 }
 
 function strToTypeIndex(str) {
@@ -33,13 +36,12 @@ function strToTypeIndex(str) {
 }
 
 function addCoursePoint(trackingpointId, name, type, note) {
-    console.log("addCoursePoint()");
+    console.log("addCoursePoint(%d, %s, %s, %s)", trackingpointId, name, type, note);
     // iterate through trackpoints to find the position in coursepoints to insert
-    var coursePoints = parsedContent.TrainingCenterDatabase.Courses[0].Course[0].CoursePoint;
     var prevCoursepointId = 0;
     for (let i = 0; i < trackingpointId; i++) {
-        if (allTrackPoints[i].Position[0].LongitudeDegrees[0] == coursePoints[prevCoursepointId].Position[0].LongitudeDegrees[0] &&
-            allTrackPoints[i].Position[0].LatitudeDegrees[0] == coursePoints[prevCoursepointId].Position[0].LatitudeDegrees[0]) {
+        if (allTrackPoints[i].Position[0].LongitudeDegrees[0] == allCoursePoints[prevCoursepointId].Position[0].LongitudeDegrees[0] &&
+            allTrackPoints[i].Position[0].LatitudeDegrees[0] == allCoursePoints[prevCoursepointId].Position[0].LatitudeDegrees[0]) {
 
             prevCoursepointId++;
         }
@@ -53,7 +55,8 @@ function addCoursePoint(trackingpointId, name, type, note) {
         PointType: [type],
         Notes: [note]
     };
-    parsedContent.TrainingCenterDatabase.Courses[0].Course[0].CoursePoint.splice(prevCoursepointId, 0, newCP);
+    allCoursePoints.splice(prevCoursepointId, 0, newCP);
+    selectPoint(trackingpointId);
 }
 
 function updateCoursePoint(trackingpointId, idx, name, type, note) {
@@ -67,85 +70,91 @@ function updateCoursePoint(trackingpointId, idx, name, type, note) {
         PointType: [type],
         Notes: [note]
     };
+    selectPoint(trackingpointId);
 }
 
-function delCoursePoint(idx) {
+function delCoursePoint(trackingpointId, idx) {
     console.log("deleteCoursePoint()");
     parsedContent.TrainingCenterDatabase.Courses[0].Course[0].CoursePoint.splice(idx, 1);
+    selectPoint(trackingpointId);
 }
 
-function selectPoint(e) {
-    var idSelected = e.target.getFeatures().item(0).getId();
-    document.getElementById('showLag').innerText = allTrackPoints[idSelected].Position[0].LatitudeDegrees[0];
-    document.getElementById('showLon').innerText = allTrackPoints[idSelected].Position[0].LongitudeDegrees[0];
-    var course = parsedContent.TrainingCenterDatabase.Courses[0].Course[0];
-    var coursePoints = course.CoursePoint;
-    var coursePointExist = false;
-    for (let i = 0; i < coursePoints.length; i++) {
-        if (allTrackPoints[idSelected].Position[0].LongitudeDegrees[0] == coursePoints[i].Position[0].LongitudeDegrees[0] &&
-            allTrackPoints[idSelected].Position[0].LatitudeDegrees[0] == coursePoints[i].Position[0].LatitudeDegrees[0]) {
-            coursePointExist = true;
-            console.log(coursePoints[i]);
+function selectPoint(idSelected) {
+    console.log("idSelected: %d", idSelected);
+    // document.getElementById('showLag').innerText = allTrackPoints[idSelected].Position[0].LatitudeDegrees[0];
+    // document.getElementById('showLon').innerText = allTrackPoints[idSelected].Position[0].LongitudeDegrees[0];
+    var selectedIsCoursePoint = false;
+    for (let i = 0; i < allCoursePoints.length; i++) {
+        if (allTrackPoints[idSelected].Position[0].LongitudeDegrees[0] == allCoursePoints[i].Position[0].LongitudeDegrees[0] &&
+            allTrackPoints[idSelected].Position[0].LatitudeDegrees[0] == allCoursePoints[i].Position[0].LatitudeDegrees[0]) {
+
+            selectedIsCoursePoint = true;
             document.getElementById('showInfo').innerText = "Existing course point!";
             document.getElementById('cpSet').removeAttribute('disabled');
             document.getElementById('cpUnset').removeAttribute('disabled');
-            document.getElementById('nameEdit').value = coursePoints[i].Name[0];
-            document.getElementById('noteEdit').value = coursePoints[i].Notes[0];
-            document.getElementById('typeEdit').selectedIndex = strToTypeIndex(coursePoints[i].PointType[0]);
+            document.getElementById('nameEdit').value = allCoursePoints[i].Name[0];
+            document.getElementById('noteEdit').value = allCoursePoints[i].Notes[0];
+            document.getElementById('typeEdit').selectedIndex = strToTypeIndex(allCoursePoints[i].PointType[0]);
 
-            document.getElementById('cpSet').addEventListener('click',
-                updateCoursePoint.bind(undefined,
-                    idSelected, i, 
-                    document.getElementById('nameEdit').value,
-                    document.getElementById('typeEdit').selectedOptions[0].value,
-                    document.getElementById('noteEdit').value),
-                {once: true});
-            document.getElementById('cpUnset').addEventListener('click', function () {
-                delCoursePoint(i);
-                // TODO: update display
-            }, {once: true});
+            document.getElementById('cpSet').removeEventListener('click', updateCB, {once: true});
+            document.getElementById('cpSet').removeEventListener('click', addCB, {once: true});
+            updateCB = function() {
+                    updateCoursePoint(idSelected, i,
+                        document.getElementById('nameEdit').value,
+                        document.getElementById('typeEdit').selectedOptions[0].value,
+                        document.getElementById('noteEdit').value);
+                };
+            document.getElementById('cpSet').addEventListener('click', updateCB, {once: true});
+
+            document.getElementById('cpUnset').removeEventListener('click', delCB, {once: true});
+            delCB = delCoursePoint.bind(undefined, idSelected, i);
+            document.getElementById('cpUnset').addEventListener('click', delCB, {once: true});
             break;
         }
     }
-    if (!coursePointExist) {
+    if (!selectedIsCoursePoint) {
         document.getElementById('showInfo').innerText = '';
         document.getElementById('cpSet').removeAttribute('disabled');
         document.getElementById('cpUnset').setAttribute('disabled', '');
         document.getElementById('nameEdit').value = '';
         document.getElementById('noteEdit').value = '';
-        // FIXME:
-        document.getElementById('cpSet').addEventListener('click', function () {
-            addCoursePoint(idSelected,
-                document.getElementById('nameEdit').value,
-                document.getElementById('typeEdit').selectedOptions[0].value,
-                document.getElementById('noteEdit').value
-            );
-        }, {once: true});
+
+        document.getElementById('cpSet').removeEventListener('click', updateCB, {once: true});
+        document.getElementById('cpSet').removeEventListener('click', addCB, {once: true});
+        addCB = function() {
+				addCoursePoint(idSelected,
+					document.getElementById('nameEdit').value,
+					document.getElementById('typeEdit').selectedOptions[0].value,
+                    document.getElementById('noteEdit').value);
+            }
+        document.getElementById('cpSet').addEventListener('click', addCB, {once: true});
     }
 }
 
 function processTcx(content) {
-    reset();
+    resetGlobalVariables();
+    document.getElementById("cpEdit").removeAttribute("hidden");
+    document.getElementById("save").removeAttribute("disabled");
 
+    // set global variables
     parsedContent = content;
-    var course = content.TrainingCenterDatabase.Courses[0].Course[0];
-    var trackpoints = course.Track[0].Trackpoint;
+    allTrackPoints = content.TrainingCenterDatabase.Courses[0].Course[0].Track[0].Trackpoint;
+    allCoursePoints = content.TrainingCenterDatabase.Courses[0].Course[0].CoursePoint;
 
+    // prepare to draw all track points
     var features = []
-    for (let i = 0; i < trackpoints.length; i++) {
-        allTrackPoints.push(trackpoints[i]);
-        var lat = parseFloat(trackpoints[i].Position[0].LatitudeDegrees[0]);
-        var lon = parseFloat(trackpoints[i].Position[0].LongitudeDegrees[0]);
+    for (let i = 0; i < allTrackPoints.length; i++) {
+        var lat = parseFloat(allTrackPoints[i].Position[0].LatitudeDegrees[0]);
+        var lon = parseFloat(allTrackPoints[i].Position[0].LongitudeDegrees[0]);
         var f = new Feature(new Point(fromLonLat([lon, lat])));
         f.setId(i);
         features.push(f);
     }
+    var trackingpointsLayer = new VectorLayer({ source: new VectorSource({ features: features }) });
 
     var rasterLayer = new TileLayer({
         source: new OSM()
     });
-
-    var trackingpointsLayer = new VectorLayer({ source: new VectorSource({ features: features }) });
 
     var select = new Select();
 
@@ -159,7 +168,9 @@ function processTcx(content) {
     });
 
     map.addInteraction(select);
-    select.on('select', selectPoint);
+    select.on('select', function(e) {
+        selectPoint(e.target.getFeatures().item(0).getId());
+    });
 }
 
 function handleFileSelect(event) {
