@@ -19,7 +19,7 @@ var delCB = null;
 function resetGlobalVariables() {
     parsedContent = null;
     allTrackPoints = null;
-    allCoursePoints =null 
+    allCoursePoints = null;
 }
 
 function strToTypeIndex(str) {
