@@ -122,11 +122,11 @@ function selectPoint(idSelected) {
         document.getElementById('cpSet').removeEventListener('click', updateCB, {once: true});
         document.getElementById('cpSet').removeEventListener('click', addCB, {once: true});
         addCB = function() {
-				addCoursePoint(idSelected,
-					document.getElementById('nameEdit').value,
-					document.getElementById('typeEdit').selectedOptions[0].value,
-                    document.getElementById('noteEdit').value);
-            }
+            addCoursePoint(idSelected,
+                           document.getElementById('nameEdit').value,
+                           document.getElementById('typeEdit').selectedOptions[0].value,
+                           document.getElementById('noteEdit').value);
+        }
         document.getElementById('cpSet').addEventListener('click', addCB, {once: true});
     }
 }
