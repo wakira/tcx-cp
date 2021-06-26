@@ -1,6 +1,7 @@
 import 'ol/ol.css';
 import { Map, View } from 'ol';
-import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
+import TileLayer from 'ol/layer/Tile'
+import VectorLayer from 'ol/layer/Vector'
 import OSM from 'ol/source/OSM';
 import Point from 'ol/geom/Point';
 import Select from 'ol/interaction/Select';
