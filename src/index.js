@@ -144,7 +144,7 @@ function processTcx(content) {
 
     // prepare to draw all track points
     var features = []
-    for (let i = 0; i < allTrackPoints.length; i++) {
+    for (let i in allTrackPoints) {
         var lat = parseFloat(allTrackPoints[i].Position[0].LatitudeDegrees[0]);
         var lon = parseFloat(allTrackPoints[i].Position[0].LongitudeDegrees[0]);
         var f = new Feature(new Point(fromLonLat([lon, lat])));
@@ -152,6 +152,9 @@ function processTcx(content) {
         features.push(f);
     }
     var trackingpointsLayer = new VectorLayer({ source: new VectorSource({ features: features }) });
+
+    let startLat = allTrackPoints.length > 0 ? parseFloat(allTrackPoints[0].Position[0].LatitudeDegrees[0]) : 0;
+    let startLon = allTrackPoints.length > 0 ? parseFloat(allTrackPoints[0].Position[0].LongitudeDegrees[0]) : 0;
 
     var rasterLayer = new TileLayer({
         source: new OSM()
@@ -163,7 +166,7 @@ function processTcx(content) {
         target: 'map',
         layers: [rasterLayer, trackingpointsLayer],
         view: new View({
-            center: fromLonLat([139.69466, 35.62574]),
+            center: fromLonLat([startLon, startLat]),
             zoom: 15
         })
     });
