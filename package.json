@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "clean": "^4.0.2",
-    "ol": "^6.5.0",
+    "ol": "^6.6.1",
     "xml2js": "^0.4.23"
   },
   "devDependencies": {

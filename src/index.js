@@ -9,18 +9,52 @@ import Feature from 'ol/Feature';
 import VectorSource from 'ol/source/Vector';
 import { fromLonLat } from 'ol/proj';
 import { Builder, parseString } from 'xml2js'
+import { Fill, Stroke, Circle, Style } from 'ol/style';
+
+const nonCoursePointStyle =
+    new Style({
+        image: new Circle({
+            fill: new Fill({color: 'rgba(255,153,22,0.4)'}),
+            stroke: new Stroke({color: '#000000', width: 1.25}),
+            radius: 5
+        })
+    }) ;
+const coursePointStyle =
+    new Style({
+        image: new Circle({
+            fill: new Fill({color: 'rgba(255,0,0,0.4)'}),
+            stroke: new Stroke({color: '#000000', width: 1.25}),
+            radius: 5
+        })
+    }) ;
+const selectedStyle =
+    new Style({
+        image: new Circle({
+            fill: new Fill({color: 'rgba(255,0,0,1)'}),
+            stroke: new Stroke({color: '#000000', width: 1.25}),
+            radius: 6
+        })
+    }) ;
 
 var parsedContent = null;
 var allTrackPoints = null;
 var allCoursePoints = null;
+var trackPointIdByLatLon = {}
 var addCB = null;
 var updateCB = null;
 var delCB = null;
+var features = null;
+
+function encodeLatLon(lat, lon) {
+    return "LAT:" + lat.toString() + "LON:" + lon.toString();
+}
 
 function resetGlobalVariables() {
     parsedContent = null;
     allTrackPoints = null;
     allCoursePoints = null;
+    trackPointIdByLatLon = {};
+    features = null;
 }
 
 function strToTypeIndex(str) {
@@ -57,6 +91,7 @@ function addCoursePoint(trackingpointId, name, type, note) {
         Notes: [note]
     };
     allCoursePoints.splice(prevCoursepointId, 0, newCP);
+    features[trackingpointId].setStyle(coursePointStyle);
     selectPoint(trackingpointId);
 }
 
@@ -77,6 +112,7 @@ function updateCoursePoint(trackingpointId, idx, name, type, note) {
 function delCoursePoint(trackingpointId, idx) {
     console.log("deleteCoursePoint()");
     parsedContent.TrainingCenterDatabase.Courses[0].Course[0].CoursePoint.splice(idx, 1);
+    features[trackingpointId].setStyle(coursePointStyle);
     selectPoint(trackingpointId);
 }
 
@@ -143,26 +179,35 @@ function processTcx(content) {
     allCoursePoints = content.TrainingCenterDatabase.Courses[0].Course[0].CoursePoint;
 
     // prepare to draw all track points
-    var features = []
+    features = []
     for (let i in allTrackPoints) {
-        var lat = parseFloat(allTrackPoints[i].Position[0].LatitudeDegrees[0]);
-        var lon = parseFloat(allTrackPoints[i].Position[0].LongitudeDegrees[0]);
-        var f = new Feature(new Point(fromLonLat([lon, lat])));
+        let lat = parseFloat(allTrackPoints[i].Position[0].LatitudeDegrees[0]);
+        let lon = parseFloat(allTrackPoints[i].Position[0].LongitudeDegrees[0]);
+        trackPointIdByLatLon[encodeLatLon(lat, lon)] = i;
+        let f = new Feature(new Point(fromLonLat([lon, lat])));
         f.setId(i);
+        f.setStyle(nonCoursePointStyle);
         features.push(f);
     }
-    var trackingpointsLayer = new VectorLayer({ source: new VectorSource({ features: features }) });
+    for (let cp of allCoursePoints) {
+        let lat = parseFloat(cp.Position[0].LatitudeDegrees[0]);
+        let lon = parseFloat(cp.Position[0].LongitudeDegrees[0]);
+        let id = trackPointIdByLatLon[encodeLatLon(lat, lon)];
+        features[id].setStyle(coursePointStyle);
+    }
+    let trackingpointsLayer = new VectorLayer({ source: new VectorSource({ features: features})});
 
     let startLat = allTrackPoints.length > 0 ? parseFloat(allTrackPoints[0].Position[0].LatitudeDegrees[0]) : 0;
     let startLon = allTrackPoints.length > 0 ? parseFloat(allTrackPoints[0].Position[0].LongitudeDegrees[0]) : 0;
 
-    var rasterLayer = new TileLayer({
+    let rasterLayer = new TileLayer({
         source: new OSM()
     });
 
-    var select = new Select();
+    // TODO: use a special style instead
+    let select = new Select({style: selectedStyle});
 
-    var map = new Map({
+    let map = new Map({
         target: 'map',
         layers: [rasterLayer, trackingpointsLayer],
         view: new View({
@@ -178,8 +223,8 @@ function processTcx(content) {
 }
 
 function handleFileSelect(event) {
-    var file = event.target.files[0];
-    var reader = new FileReader();
+    let file = event.target.files[0];
+    let reader = new FileReader();
     reader.onload = function (ev) {
         parseString(ev.target.result, function (err, result) {
             processTcx(result);
@@ -189,17 +234,16 @@ function handleFileSelect(event) {
 }
 
 function save() {
-    var fs = require('fs');
-    var builder = new Builder({
+    let builder = new Builder({
         xmldec: {
             'version': '1.0',
             'encoding': 'UTF-8',
             'standalone': null
         }
     });
-    var xml = builder.buildObject(parsedContent);
+    let xml = builder.buildObject(parsedContent);
     xml += '\n';
-    var blob = new Blob([xml], { "type": "text/plain" });
+    let blob = new Blob([xml], { "type": "text/plain" });
 
     if (window.navigator.msSaveBlob) {
         window.navigator.msSaveBlob(blob, "test.txt");
