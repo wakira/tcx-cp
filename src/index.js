@@ -4,6 +4,7 @@ import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
 import OSM from 'ol/source/OSM';
 import Point from 'ol/geom/Point';
+import LineString from 'ol/geom/LineString';
 import Select from 'ol/interaction/Select';
 import Feature from 'ol/Feature';
 import VectorSource from 'ol/source/Vector';
@@ -35,6 +36,11 @@ const selectedStyle =
             radius: 6
         })
     }) ;
+const lineStyle =
+    new Style({
+        fill: new Fill({ color: '#00FF00', weight: 4 }),
+        stroke: new Stroke({ color: '#00FF00', width: 2 })
+    });
 
 var parsedContent = null;
 var allTrackPoints = null;
@@ -179,7 +185,7 @@ function processTcx(content) {
     allCoursePoints = content.TrainingCenterDatabase.Courses[0].Course[0].CoursePoint;
 
     // prepare to draw all track points
-    features = []
+    features = [];
     for (let i in allTrackPoints) {
         let lat = parseFloat(allTrackPoints[i].Position[0].LatitudeDegrees[0]);
         let lon = parseFloat(allTrackPoints[i].Position[0].LongitudeDegrees[0]);
@@ -197,6 +203,10 @@ function processTcx(content) {
     }
     let trackingpointsLayer = new VectorLayer({ source: new VectorSource({ features: features})});
 
+    let coordinates = features.map((f) => f.getGeometry().getCoordinates());
+    let lineLayer = new VectorLayer({ source: new VectorSource({ features: [new Feature({
+        geometry: new LineString(coordinates)})]}), style: lineStyle});
+
     let startLat = allTrackPoints.length > 0 ? parseFloat(allTrackPoints[0].Position[0].LatitudeDegrees[0]) : 0;
     let startLon = allTrackPoints.length > 0 ? parseFloat(allTrackPoints[0].Position[0].LongitudeDegrees[0]) : 0;
 
@@ -204,12 +214,11 @@ function processTcx(content) {
         source: new OSM()
     });
 
-    // TODO: use a special style instead
     let select = new Select({style: selectedStyle});
 
     let map = new Map({
         target: 'map',
-        layers: [rasterLayer, trackingpointsLayer],
+        layers: [rasterLayer, trackingpointsLayer, lineLayer],
         view: new View({
             center: fromLonLat([startLon, startLat]),
             zoom: 15
