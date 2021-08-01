@@ -214,7 +214,7 @@ function processTcx(content) {
         source: new OSM()
     });
 
-    let select = new Select({style: selectedStyle});
+    let select = new Select({style: selectedStyle, layers: [trackingpointsLayer]});
 
     let map = new Map({
         target: 'map',
